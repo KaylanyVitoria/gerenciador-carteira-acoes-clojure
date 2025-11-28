@@ -2,7 +2,7 @@
   (:require [clj-http.client :as http]
             [cheshire.core :as json]))
 
-(def brapi-token "dYjEpG7Y4yeGApcHmR12x8") ; Substitua pelo token gratuito da Brapi
+(def brapi-token "SUA_CHAVE") ; Substitua pelo token gratuito da Brapi
 (def base-url "https://brapi.dev/api/quote/")
 
 (defn consultar-acao [simbolo]
