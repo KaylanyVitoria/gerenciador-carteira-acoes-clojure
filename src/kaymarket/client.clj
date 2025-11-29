@@ -2,7 +2,7 @@
   (:require [clj-http.client :as http]
             [cheshire.core :as json]))
 
-(def brapi-token "dYjEpG7Y4yeGApcHmR12x8") ; Substitua pelo token gratuito da Brapi
+(def brapi-token "SUA_CHAVE") ; Substitua pelo token gratuito da Brapi
 (def base-url "https://brapi.dev/api/quote/")
 
 (defn consultar-acao [simbolo]
@@ -11,9 +11,10 @@
                              {:query-params {"token" brapi-token}
                               :as :json})
           dados (first (get-in response [:body :results]))]
-      ;; Retornamos apenas os dados solicitados
       {:codigo (:symbol dados)
-       :nome (:longName dados)
+       :nome-longo (:longName dados)
+       :nome-curto (:shortName dados)
+       :moeda (:currency dados)
        :ultimo-preco (:regularMarketPrice dados)
        :preco-max (:regularMarketDayHigh dados)
        :preco-min (:regularMarketDayLow dados)

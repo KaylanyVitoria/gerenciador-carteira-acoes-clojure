@@ -2,32 +2,30 @@
   (:require [clj-http.client :as http]
             [cheshire.core :as json]
             [clojure.string :as str])
-  ;; CORREÇÃO: Uso de parenteses para importação Java é o padrão mais seguro
-  (:import (java.time LocalDate)))
+  (:import (java.time LocalDateTime)
+           (java.time.format DateTimeFormatter)))
 
-;; URL do seu servidor local
 (def api-url "http://localhost:3000")
 
-;; --- Funções Auxiliares de Input/Output ---
+;; --- Funções Auxiliares e Formatação ---
 
-(defn data-hoje []
-  (str (LocalDate/now))) ;; Retorna ex: "2025-11-27"
+(defn data-hora-atual []
+  (let [formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss")]
+    (.format (LocalDateTime/now) formatter)))
 
 (defn ler-entrada []
-  "Lê o input do usuário, remove espaços e converte para maiúsculo."
-  (some-> (read-line)
-          str/trim
-          str/upper-case))
+  (some-> (read-line) str/trim str/upper-case))
 
 (defn ler-inteiro []
-  "Lê o input e tenta converter para inteiro de forma segura."
   (try
     (Integer/parseInt (str/trim (read-line)))
-    (catch NumberFormatException _
-      (println "Valor inválido. Digite apenas números.")
-      nil)))
+    (catch NumberFormatException _ nil)))
 
-;; --- Funções de Requisição HTTP ---
+(defn formatar-dinheiro [valor]
+  ;; Formata o número para 2 casas decimais. Ex: 1500.50
+  (format "%.2f" (float valor)))
+
+;; --- Requisições HTTP ---
 
 (defn get-json [endpoint]
   (try
@@ -37,110 +35,152 @@
       (let [data (ex-data e)
             status (some-> data :data :status)]
         (if (= status 404)
-          {:erro "Recurso não encontrado (404)."}
-          {:erro (str "Erro de conexão: " (.getMessage e))})))))
+          nil ;; Retorna nil silenciosamente se não achar
+          {:erro (str "Erro: " (.getMessage e))})))))
 
 (defn post-json [endpoint body]
   (try
     (http/post (str api-url endpoint)
                {:body (json/generate-string body)
                 :content-type :json
-                :as :json})
+                :as :json
+                :throw-exceptions false})
     (catch Exception e
-      (println "Erro ao enviar dados:" (.getMessage e)))))
+      {:status 500 :body {:mensagem (.getMessage e)}})))
+
+;; --- Funções Recursivas de Impressão (COM CÁLCULOS) ---
+
+(defn imprimir-lista-extrato [lista]
+  (if (empty? lista)
+    nil
+    (let [t (first lista)
+          preco      (:preco t)
+          qtd        (:quantidade t)
+          tipo       (:tipo t)
+          ;; CÁLCULO 1: Valor total da transação
+          total      (* preco qtd)
+          ;; Define o sinal visual (+ ou -)
+          sinal      (if (= tipo "compra") "+" "-")
+          cor-sinal  (str sinal " " (formatar-dinheiro total))]
+
+      (println (str (:data t) " | "
+                    (str/upper-case tipo) " | "
+                    (:codigo t) " | Qtd: " qtd
+                    " | Unit: R$ " (formatar-dinheiro preco)
+                    " | Total: " cor-sinal))
+
+      (recur (rest lista)))))
+
+(defn imprimir-lista-saldo [lista]
+  (if (empty? lista)
+    nil
+    (let [item (first lista)
+          codigo (:acao item)
+          qtd    (:quantidade item)]
+
+      ;; Se a quantidade for 0, pula para o próximo sem consultar API
+      (if (zero? qtd)
+        (recur (rest lista))
+
+        ;; CÁLCULO 2: Busca preço em tempo real para valorizar a carteira
+        (let [dados-atual (get-json (str "/acao/" codigo))]
+          (if dados-atual
+            (let [preco-hoje (:ultimo-preco dados-atual)
+                  valor-total (* preco-hoje qtd)]
+              (println (str "Acao: " codigo
+                            " | Cotacao Atual: R$ " (formatar-dinheiro preco-hoje)
+                            " | Qtd: " qtd
+                            " | Patrimonio: R$ " (formatar-dinheiro valor-total))))
+
+            ;; Caso falhe a API, mostra sem o valor atualizado
+            (println (str "Acao: " codigo " | Qtd: " qtd " (Erro ao buscar cotação atual)")))
+
+          (recur (rest lista)))))))
 
 ;; --- Lógica de Negócio ---
 
 (defn buscar-preco-real [codigo]
   (if (str/blank? codigo)
-    {:erro "Código da ação não pode ser vazio."}
+    {:erro "Código invalido."}
     (do
-      (println "Buscando cotação em tempo real para" codigo "...")
+      (println "Buscando cotação para" codigo "...")
       (let [dados (get-json (str "/acao/" codigo))]
         (if (:erro dados)
           (do (println "Erro:" (:erro dados)) nil)
           dados)))))
 
 (defn realizar-operacao [tipo-operacao]
-  "Função genérica para Comprar ou Vender para evitar repetição de código."
   (let [endpoint (if (= tipo-operacao :compra) "/compra" "/venda")
         titulo   (if (= tipo-operacao :compra) "COMPRAR" "VENDER")]
 
-    (println (str "\n--- " titulo " AÇÃO ---"))
-    (print "Digite o código da ação (ex: PETR4): ") (flush)
+    (println (str "\n--- " titulo " ACAO ---"))
+    (print "Digite o codigo (ex: PETR4): ") (flush)
 
     (let [codigo (ler-entrada)]
       (if (str/blank? codigo)
-        (println "Operação cancelada: Código inválido.")
-
-        ;; Busca dados na API
+        (println "Cancelado.")
         (when-let [dados-acao (buscar-preco-real codigo)]
           (let [preco (:ultimo-preco dados-acao)
                 nome  (:nome dados-acao)
-                hj    (data-hoje)]
+                agora (data-hora-atual)]
 
-            (println "Ação:" nome)
-            (println "Preço de Mercado: R$" preco "| Data:" hj)
-
-            (print "Digite a quantidade: ") (flush)
+            (println "Acao:" codigo)
+            (println "Preco: R$" preco "| Data:" agora)
+            (print "Quantidade: ") (flush)
 
             (if-let [qtd (ler-inteiro)]
               (if (pos? qtd)
-                (do
-                  (post-json endpoint {:codigo codigo
-                                       :quantidade qtd
-                                       :preco preco
-                                       :data hj})
-                  (println (str/capitalize titulo) "registrada com sucesso!"))
-                (println "A quantidade deve ser maior que zero."))
-              (println "Operação cancelada."))))))))
+                (let [resp (post-json endpoint {:codigo codigo
+                                                :quantidade qtd
+                                                :preco preco
+                                                :data agora})]
+                  (if (= (:status resp) 200)
+                    (println (str/capitalize titulo) "sucesso! Valor total: R$"
+                             (formatar-dinheiro (* preco qtd)))
+                    (println "ERRO:" (get-in resp [:body :mensagem]))))
+                (println "Qtd deve ser positiva."))
+              (println "Operacao cancelada."))))))))
 
-;; Wrappers para o menu
+;; Wrappers
 (defn acao-comprar [] (realizar-operacao :compra))
 (defn acao-vender []  (realizar-operacao :venda))
 
 (defn acao-extrato []
-  (println "\n--- EXTRATO ---")
-  ;; Range de datas amplo para garantir retorno nos testes
+  (println "\n--- EXTRATO FINANCEIRO ---")
   (let [extrato (get-json "/extrato?inicio=2020-01-01&fim=2030-12-31")]
-    (cond
-      (:erro extrato) (println "Erro ao buscar extrato:" (:erro extrato))
-      (empty? extrato) (println "Nenhuma transação encontrada.")
-      :else (doseq [t extrato]
-              (println (str (:data t) " | "
-                            (str/upper-case (:tipo t)) " | "
-                            (:codigo t) " | Qtd: "
-                            (:quantidade t) " | R$ " (:preco t)))))))
+    (if (or (:erro extrato) (empty? extrato))
+      (println "Sem transações.")
+      (imprimir-lista-extrato extrato))))
 
 (defn acao-saldo []
-  (println "\n--- SALDO ATUAL ---")
-  (let [carteira (get-json "/carteira")]
-    (if (:erro carteira)
-      (println "Erro ao buscar saldo:" (:erro carteira))
-      (doseq [item carteira]
-        (println "Ação:" (:acao item) "| Quantidade em carteira:" (:quantidade item))))))
+  (println "\n--- SALDO E PATRIMONIO ---")
+  (println "(Consultando valores atuais de mercado...)")
+  (let [c (get-json "/carteira")]
+    (if (or (:erro c) (empty? c))
+      (println "Carteira vazia.")
+      (imprimir-lista-saldo c))))
 
 ;; --- Menu Principal ---
 
 (defn menu-principal []
-  (println "\n==========================")
-  (println "   CARTEIRA DE AÇÕES CLI  ")
-  (println "==========================")
-  (println "1. Comprar Ações")
-  (println "2. Vender Ações")
+  (println "\n-------------------------")
+  (println "   KAYMARKET ACOES  ")
+  (println "----------------------------")
+  (println "1. Comprar Acoes")
+  (println "2. Vender Acoes")
   (println "3. Consultar Extrato")
   (println "4. Ver Saldo da Carteira")
   (println "5. Sair")
-  (print "Escolha uma opção: ") (flush)
+  (print "Escolha uma opcao: ") (flush)
 
   (let [opcao (ler-entrada)]
     (case opcao
       "1" (do (acao-comprar) (menu-principal))
-      "2" (do (acao-vender) (menu-principal)) ;; Agora funciona completo
+      "2" (do (acao-vender) (menu-principal))
       "3" (do (acao-extrato) (menu-principal))
       "4" (do (acao-saldo) (menu-principal))
-      "5" (println "Saindo... Até logo!")
-      (do (println "Opção inválida.") (menu-principal)))))
+      "5" (println "Saindo... Ate logo")
+      (do (println "Opcao invalida.") (menu-principal)))))
 
 (defn -main []
   (menu-principal))
