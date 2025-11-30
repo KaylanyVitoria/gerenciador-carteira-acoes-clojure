@@ -71,31 +71,39 @@
 
       (recur (rest lista)))))
 
-(defn imprimir-lista-saldo [lista]
+(defn imprimir-lista-saldo [lista total-acumulado]
   (if (empty? lista)
-    nil
+    ;; CASO BASE: A lista acabou. Imprime o TOTAL GERAL acumulado.
+    (println (str "\n--> Patrimônio Total: R$ " (formatar-dinheiro total-acumulado)))
+
+    ;; PASSO RECURSIVO
     (let [item (first lista)
           codigo (:acao item)
           qtd    (:quantidade item)]
 
-      ;; Se a quantidade for 0, pula para o próximo sem consultar API
       (if (zero? qtd)
-        (recur (rest lista))
+        ;; Se qtd é 0, não soma nada e passa pro próximo
+        (recur (rest lista) total-acumulado)
 
-        ;; CÁLCULO 2: Busca preço em tempo real para valorizar a carteira
+        ;; Busca preço atual
         (let [dados-atual (get-json (str "/acao/" codigo))]
           (if dados-atual
-            (let [preco-hoje (:ultimo-preco dados-atual)
-                  valor-total (* preco-hoje qtd)]
+            (let [preco-hoje  (:ultimo-preco dados-atual)
+                  valor-ativo (* preco-hoje qtd)]
+
+              ;; Imprime a linha individual
               (println (str "Acao: " codigo
                             " | Cotacao Atual: R$ " (formatar-dinheiro preco-hoje)
                             " | Qtd: " qtd
-                            " | Patrimonio: R$ " (formatar-dinheiro valor-total))))
+                            " | Patrimonio: R$ " (formatar-dinheiro valor-ativo)))
 
-            ;; Caso falhe a API, mostra sem o valor atualizado
-            (println (str "Acao: " codigo " | Qtd: " qtd " (Erro ao buscar cotação atual)")))
+              ;; RECURSÃO: Chama a função com o resto da lista E soma o valor atual ao acumulado
+              (recur (rest lista) (+ total-acumulado valor-ativo)))
 
-          (recur (rest lista)))))))
+            ;; Se der erro na API, avisa e mantém o acumulado anterior
+            (do
+              (println (str "Acao: " codigo " | Qtd: " qtd " (Erro ao obter cotação)"))
+              (recur (rest lista) total-acumulado))))))))
 
 ;; --- Lógica de Negócio ---
 
@@ -158,7 +166,8 @@
   (let [c (get-json "/carteira")]
     (if (or (:erro c) (empty? c))
       (println "Carteira vazia.")
-      (imprimir-lista-saldo c))))
+      ;; MUDANÇA AQUI: Inicia a recursão com acumulador zerado (0.0)
+      (imprimir-lista-saldo c 0.0))))
 
 ;; --- Menu Principal ---
 
