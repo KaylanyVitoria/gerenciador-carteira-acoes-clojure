@@ -26,11 +26,12 @@ lein repl
     
 
 → Executar os testes de acordo com a necessidade.
+-> NÃO esquecer de encerrar o servidor ao terminar
 
 ### BACKLOG:
 
 ⇒ ~~Próximos passos / date: **27/11/25**~~
-
+-> Lembrar de adicionar a função para o usuário SÓ consultar ação
 - O extrato não está sendo feito por período, somente total do que existe no banco
 - A consulta também não está calculando o total (EM DINHEIRO) que o usuário possui, está só indicando quantas ações tem de cada ativo
 - O extrato NÃO está exibindo todas as informações, somente DATA (falta hora), tipo da transação (se compra ou venda), ativo (ex. PETR4), quantidade de ações que possui e valor da ação (NÃO valor total gasto)
