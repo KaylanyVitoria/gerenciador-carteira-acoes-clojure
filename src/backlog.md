@@ -31,14 +31,13 @@ lein repl
 ### BACKLOG:
 
 ⇒ ~~Próximos passos / date: **27/11/25**~~
--> Lembrar de adicionar a função para o usuário SÓ consultar ação
 - O extrato não está sendo feito por período, somente total do que existe no banco
 - A consulta também não está calculando o total (EM DINHEIRO) que o usuário possui, está só indicando quantas ações tem de cada ativo
 - O extrato NÃO está exibindo todas as informações, somente DATA (falta hora), tipo da transação (se compra ou venda), ativo (ex. PETR4), quantidade de ações que possui e valor da ação (NÃO valor total gasto)
 - Faltam TODOS os testes unitários e integrados do Clojure
 
 ⇒ Próximos passos / date: **29/11/25**
-
+- Lembrar de adicionar a função para o usuário SÓ consultar ação
 - O extrato não está sendo feito por período, somente total do que existe no banco
 - Refatoração - Divisão de Responsabilidades
 - Faltam TODOS os testes unitários e integrados do Clojure
