@@ -1,1 +1,0 @@
-["^ ","~$venda-valida?",["^ ","~:row",4,"~:col",1,"~:fixed-arities",["~#set",[3]],"~:name","^0","~:ns","~$kaymarket.dominio.venda","~:top-ns","^7","~:arities",["^ ","~i3",["^ ","~:ret","~:boolean","~:arglist-str","[transacoes codigo qtd-venda]"]],"~:type","~:fn"],"~:filename","/Users/kaylany/kaymarket/src/kaymarket/dominio/venda.clj"]
