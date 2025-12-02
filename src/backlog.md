@@ -41,7 +41,7 @@ lein repl
 - LOGO: A API deve consultar o valor que a ação estava, naquela data.
 - Lembrar de adicionar a função para o usuário SÓ consultar ação
 - O extrato não está sendo feito por período, somente total do que existe no banco
-- Refatoração - Divisão de Responsabilidades
+- ~~Refatoração - Divisão de Responsabilidades~~(FEITO)
 - Faltam TODOS os testes unitários e integrados do Clojure
 - ~~A consulta também não está calculando o total (EM DINHEIRO) que o usuário possui, está só indicando quantas ações tem de cada ativo~~ (FEITO)
 - ~~O extrato NÃO está exibindo todas as informações, somente DATA (falta hora), tipo da transação (se compra ou venda), ativo (ex. PETR4), quantidade de ações que possui e valor da ação (NÃO valor total gasto~~) (FEITO)
