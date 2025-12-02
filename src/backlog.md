@@ -37,6 +37,8 @@ lein repl
 - Faltam TODOS os testes unitários e integrados do Clojure
 
 ⇒ Próximos passos / date: **29/11/25**
+- IMPORTANTE: O usuário deve informar a DATA da transação a ser efetuada (COMPRA ou VENDA)
+- LOGO: A API deve consultar o valor que a ação estava, naquela data.
 - Lembrar de adicionar a função para o usuário SÓ consultar ação
 - O extrato não está sendo feito por período, somente total do que existe no banco
 - Refatoração - Divisão de Responsabilidades
