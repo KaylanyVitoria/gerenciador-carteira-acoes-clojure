@@ -14,7 +14,7 @@
 ;; UTILITÁRIOS
 ;; ============================================
 (defn data-hora-atual []
-  (let [formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss'Z'")]
+  (let [formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd")]
     (.format (LocalDateTime/now) formatter)))
 
 (defn ler-entrada []
@@ -26,7 +26,9 @@
     (catch Exception _ nil)))
 
 (defn formatar-dinheiro [valor]
-  (format "%.2f" (float valor)))
+  (if (number? valor)
+    (format "%.2f" (float valor))
+  "0.00"))
 
 ;; ============================================
 ;; GET JSON COM ERROS PADRONIZADOS
@@ -37,7 +39,7 @@
                          {:as :json
                           :throw-exceptions false})]
       (if (>= (:status resp) 400)
-        {:erro (get-in resp [:body :mensagem] "Erro desconhecido")}
+        {:erro (get-in resp [:body :mensagem] "Erro desconhecido no servidor")}
         (:body resp)))
 
     (catch Exception e
@@ -55,7 +57,7 @@
                            :throw-exceptions false})]
 
       (if (>= (:status resp) 400)
-        {:erro (get-in resp [:body :mensagem] "Erro desconhecido")}
+        {:erro (get-in resp [:body :mensagem] "Erro ao processar transação")}
         ;; retorno padronizado
         {:sucesso true :dados (:body resp)}))
 
@@ -75,20 +77,55 @@
       resp)))
 
 ;; ============================================
+;; E BUSCA HISTORICA
+;; ============================================
+(defn buscar-preco-historico [codigo data]
+  (println "Buscando cotação para" codigo "em" data "...")
+  (let [resp (get-json (str "/acao/" codigo "?data=" data))]
+    (if (:erro resp)
+      (do (println "ERRO:" (:erro resp)) nil)
+      resp)))
+;; ============================================
+;; IMPRESSÃO DA AÇÃO SIMPLES
+;; ============================================
+
+(defn imprimir-detalhes-acao [dados]
+  (println "\n========================================")
+  (println "          DETALHES DA AÇÃO")
+  (println "========================================")
+  (println "Código:      " (:codigo dados))
+  (println "Nome:        " (:nome-curto dados))
+  (println "Preço Atual:  R$" (formatar-dinheiro (:ultimo-preco dados)))
+  (println "----------------------------------------")
+  (println "Abertura:     R$" (formatar-dinheiro (:abertura dados)))
+  (println "Fechamento:   R$" (formatar-dinheiro (:fechamento dados)))
+  (println "Mínima Dia:   R$" (formatar-dinheiro (:preco-min dados)))
+  (println "Máxima Dia:   R$" (formatar-dinheiro (:preco-max dados)))
+  (println "Horário Ref: " (:hora dados))
+  (println "========================================\n"))
+
+;; ============================================
 ;; IMPRESSÃO DE EXTRATO
 ;; ============================================
 (defn imprimir-lista-extrato [lista]
-  (doseq [t lista]
-    (let [preco (:preco t)
-          qtd   (:quantidade t)
-          tipo  (:tipo t)
+  (if (empty? lista)
+    nil
+    (let [t (first lista)
+          preco (or (:preco t) 0)
+          qtd   (or (:quantidade t) 0)
+          tipo  (or (:tipo t) "DESCONHECIDO")
           total (* preco qtd)
           sinal (if (= tipo "compra") "+" "-")]
+
+    
       (println (str (:data t) " | "
                     (str/upper-case tipo) " | "
                     (:codigo t) " | Qtd: " qtd
                     " | Unit: R$ " (formatar-dinheiro preco)
-                    " | Total: " sinal " " (formatar-dinheiro total))))))
+                    " | Total: " sinal " " (formatar-dinheiro total)))
+
+    
+      (recur (rest lista)))))
 
 ;; ============================================
 ;; IMPRESSÃO DE SALDO

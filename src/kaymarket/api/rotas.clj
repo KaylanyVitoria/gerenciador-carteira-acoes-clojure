@@ -5,7 +5,7 @@
             [ring.middleware.params :refer [wrap-params]]
             [kaymarket.api.servico :as servico]))
 (defroutes app-routes 
-  (GET "/acao/:codigo" [codigo] (servico/consultar-acao-handler codigo)) 
+  (GET "/acao/:codigo" [codigo data] (servico/consultar-acao-handler codigo data)) 
   (POST "/compra" request (servico/registrar-operacao (:body request) "compra"))
   (POST "/venda" request (servico/registrar-operacao (:body request) "venda"))
   (GET "/extrato"[inicio fim] (servico/extrato-handler inicio fim))

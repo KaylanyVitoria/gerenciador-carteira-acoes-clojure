@@ -4,16 +4,16 @@
 
 (defn gerar-relatorio-saldo [transacoes]
   (let [carteira (d-carteira/obter-carteira-consolidada transacoes)]
-    (map (fn [[k v]] {:acao k :quantidade v})carteira)))
+    (map (fn [[k v]] {:acao k :quantidade v}) carteira)))
+
+(defn- data-no-periodo? [data inicio fim]
+  (let [d (if (> (count data) 10) (subs data 0 10) data)
+        i (if (> (count inicio) 10) (subs inicio 0 10) inicio)
+        f (if (> (count fim) 10) (subs fim 0 10) fim)]
+    (and (>= (compare d i) 0)
+         (<= (compare d f) 0))))
 
 (defn filtrar-por-periodo [transacoes inicio fim]
   (filter (fn [t]
-            (let [data-hora-transacao (:data t)]
-              (if (and (string? data-hora-transacao)
-                       (>= (count data-hora-transacao) 10)
-                       (str/ends-with? (str/lower-case inicio) "z")
-                       (str/ends-with? (str/lower-case fim) "z"))
-                (let [data-pura (subs data-hora-transacao 0 10)]
-                  (and (>= (compare data-pura (subs inicio 0 10)) 0)
-                       (<= (compare data-pura (subs fim 0 10)) 0)))
-                false))) transacoes))
+            (data-no-periodo? (:data t) inicio fim))
+          transacoes))
