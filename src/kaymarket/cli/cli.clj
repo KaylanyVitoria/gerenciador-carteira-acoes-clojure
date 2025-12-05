@@ -3,9 +3,8 @@
             [clojure.string :as str])
   (:gen-class))
 
-;; ==========================================
-;;   Funçao generica de consulta smples
-;; ==========================================
+;;   Funçao de consulta smples
+
  (defn acao-consultar []
   (println "\n--- CONSULTAR COTAÇÃO ATUAL ---")
   (print "Digite o código da ação (ex: VALE3): ") (flush)
@@ -16,9 +15,7 @@
         (when dados
           (h/imprimir-detalhes-acao dados))))))
 
-;; ==========================================
-;;   Função Genérica de Compra e Venda
-;; ==========================================
+;;   funcao de compra e venda
  (defn realizar-operacao [tipo-operacao]
    (let [endpoint (if (= tipo-operacao :compra) "/compra" "/venda")
          titulo   (if (= tipo-operacao :compra) "ACAO COMPRAR" "ACAO VENDER")]
@@ -36,45 +33,46 @@
              (if (or (str/blank? data-op) (< (count data-op) 10))
                (println "Data inválida.")
  
-              
-               (let [dados-acao (h/buscar-preco-historico codigo data-op)]
- 
-                
-                 (if (or (nil? dados-acao) (:erro dados-acao))
-                   (println "\n(Operação cancelada: Não foi possível obter o preço para esta data.)")
- 
-                 
-                   (let [{preco :ultimo-preco} dados-acao]
-                     (if (or (nil? preco) (zero? preco))
-                       (println "\nERRO CRÍTICO: O preço retornado é zero ou inválido.")
- 
-                       (do
-                         (println "--------------------------------")
-                         (println "Ação:" codigo)
-                         (println "Data:" data-op)
-                         (println "Preço Histórico: R$" (h/formatar-dinheiro preco))
-                         (println "--------------------------------")
- 
-                         (print "Quantidade: ") (flush)
-                         (if-let [qtd (h/ler-inteiro)]
-                           (if (pos? qtd)
-                             (let [resp (h/post-json endpoint
-                                                     {:codigo codigo
-                                                      :quantidade qtd
-                                                      :preco preco
-                                                      :data data-op})]
-                               (if (:erro resp)
-                                 (println "ERRO:" (:erro resp))
-                                 (println titulo "realizada com sucesso!")))
-                             (println "Quantidade deve ser positiva."))
-                           (println "Valor inválido."))))))))))))))
+;;logica p/ verificar se data recente (consulta realtime) ou antigo (historicalPrice)
+              (let [dados-acao (if (h/data-recente? data-op)
+                          (do
+                            (println "(Data recente detectada: Usando cotação em tempo real)")
+                            (h/buscar-preco-real codigo))
+                          (do
+                            (println "(Data antiga detectada: Buscando histórico no fechamento)")
+                            (h/buscar-preco-historico codigo data-op)))]
 
+         (if (or (nil? dados-acao) (:erro dados-acao))
+           (println "\n(Operação cancelada: Não foi possível obter o preço.)")
+
+           (let [{preco :ultimo-preco} dados-acao]
+             (if (or (nil? preco) (zero? preco))
+               (println "\nERRO CRÍTICO: O preço retornado é zero ou inválido.")
+
+               (do
+                 (println "--------------------------------")
+                 (println "Ação:" codigo)
+                 (println "Data Ref:" data-op)
+                 (println "Preço Utilizado: R$" (h/formatar-dinheiro preco))
+                 (println "--------------------------------")
+
+                 (print "Quantidade: ") (flush)
+                 (if-let [qtd (h/ler-inteiro)]
+                   (if (pos? qtd);;aqui valida se a quantidade e positiva
+                     (let [resp (h/post-json endpoint
+                                             {:codigo codigo
+                                              :quantidade qtd
+                                              :preco preco
+                                              :data data-op})] ;; Envia a data digitada pelo user
+                       (if (:erro resp)
+                         (println "ERRO:" (:erro resp))
+                         (println titulo "realizada com sucesso!")))
+                     (println "Quantidade deve ser positiva."))
+                   (println "Valor inválido."))))))))))))))
 (defn acao-comprar [] (realizar-operacao :compra))
 (defn acao-vender  [] (realizar-operacao :venda))
 
-;; ==================================================
-;;            EXTRATO
-;; ==================================================
+;; funcao do extrato
 (defn obter-e-imprimir-extrato [inicio-param fim-param]
   (let [query   (str "/extrato?inicio=" inicio-param "&fim=" fim-param)
         extrato (h/get-json query)]
@@ -106,17 +104,15 @@
 
   (let [op (h/ler-entrada)]
     (case op
-      "1" (obter-e-imprimir-extrato
-           "2020-01-01"
+      "1" (obter-e-imprimir-extrato ;;data longa p/ consultar tudo
+           "2020-01-01" 
            "2030-12-31")
 
       "2" (extrato-por-periodo)
 
       (println "Opção inválida."))))
 
-;; ==================================================
-;;            SALDO
-;; ==================================================
+;; funcao do extrato
 (defn acao-saldo []
   (println "\n--- SALDO E PATRIMONIO ---")
   (println "(Consultando valores de mercado...)")
@@ -126,9 +122,6 @@
       (println "Carteira vazia.")
       (h/imprimir-lista-saldo resp 0.0))))
 
-;; ==================================================
-;;            MENU PRINCIPAL
-;; ==================================================
 (defn menu-principal []
   (println "\n-----------------------------")
   (println "      KAYMARKET AÇÕES")
