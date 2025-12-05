@@ -18,7 +18,7 @@
     (let [data-input (LocalDate/parse data-string)
           hoje       (LocalDate/now)
           diferenca  (.between ChronoUnit/DAYS data-input hoje)]
-      (<= (Math/abs diferenca) 2))
+      (<= (Math/abs diferenca) 1))
     (catch Exception _ false)))
 
 (defn ler-entrada []
